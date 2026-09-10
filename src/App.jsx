@@ -19,8 +19,8 @@ const fade = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exi
 function Reveal({ children }) {
   return <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-80px' }} transition={{ duration: 0.4, ease: 'easeOut' }}>{children}</motion.div>
 }
-function MBtn({ sec, ...rest }) {
-  return <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.97 }} transition={{ duration: 0.15 }} className={sec ? 'btn sec' : 'btn'} {...rest} />
+function MBtn({ sec, block, ...rest }) {
+  return <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.97 }} transition={{ duration: 0.15 }} className={(sec ? 'btn sec' : 'btn') + (block ? ' block' : '')} {...rest} />
 }
 
 function VerifyPanel({ sku, base }) {
@@ -107,10 +107,10 @@ function Home({ go, setPreset }) {
         <motion.div initial="h" animate="s" variants={{ h: {}, s: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } } }}>
           <motion.h1 variants={{ h: { opacity: 0, y: 12 }, s: { opacity: 1, y: 0, transition: { duration: 0.4 } } }}>Toothpaste, reduced to what works.</motion.h1>
           <motion.p variants={{ h: { opacity: 0, y: 12 }, s: { opacity: 1, y: 0, transition: { duration: 0.4 } } }}>Fluoride toothpaste that helps protect teeth when you brush twice daily. 3 fixed bases. Pick a need. Pick a flavor. Put your name on it.</motion.p>
-          <motion.div className="row" variants={{ h: { opacity: 0, y: 12 }, s: { opacity: 1, y: 0, transition: { duration: 0.4 } } }}>
+          <motion.div className="row" style={{ alignItems: 'center' }} variants={{ h: { opacity: 0, y: 12 }, s: { opacity: 1, y: 0, transition: { duration: 0.4 } } }}>
             <MBtn onClick={() => go('customize')}>Find your base</MBtn>
-            <MBtn sec onClick={() => go('shop')}>Shop all</MBtn>
-            <MBtn sec onClick={() => go('science')}>See what is inside</MBtn>
+            <button type="button" className="tlink" onClick={() => go('shop')}>or browse all products</button>
+            <button type="button" className="tlink" onClick={() => go('science')}>what is inside</button>
           </motion.div>
           <motion.p className="small muted" variants={{ h: { opacity: 0 }, s: { opacity: 1 } }}>No custom % mixing. Every batch made to the same sheet.</motion.p>
         </motion.div>
@@ -134,7 +134,7 @@ function Home({ go, setPreset }) {
             <p><b>{b.tag}</b></p>
             <p className="small">{b.desc}</p>
             <p className="small muted">{b.fluoridePpm} ppm F · RDA {b.rda} · pH {b.ph}</p>
-            <MBtn sec onClick={() => { setPreset(b.id); go('customize') }}>Customize</MBtn>
+            <MBtn block onClick={() => { setPreset(b.id); go('customize') }}>Customize {b.name}</MBtn>
           </div></Reveal>
         ))}
       </div>
@@ -178,7 +178,7 @@ function Shop({ cartApi }) {
               <p className="small muted">{p.flavor} · {p.pack}-pack · <b style={{ color: '#000' }}>${p.price}</b></p>
               <p className="small">{p.blurb}</p>
               <p className="small muted sku">{p.id}</p>
-              <MBtn onClick={() => add({ sku: p.id, label: p.name, pack: p.pack, price: p.price, flavor: p.flavor, art: p.art, photo: false, customNote: '' })} aria-label={`Add ${p.name} to cart`}>Add — ${p.price}</MBtn>
+              <MBtn block onClick={() => add({ sku: p.id, label: p.name, pack: p.pack, price: p.price, flavor: p.flavor, art: p.art, photo: false, customNote: '' })} aria-label={`Add ${p.name} to cart`}>Add — ${p.price}</MBtn>
             </div>
           </motion.article>
         ))}
@@ -454,7 +454,7 @@ export default function App() {
           </motion.main>
         </AnimatePresence>
         <footer><div className="wrap">
-          <div className="small">MONO. — B/W only. Cosmetic product. No disease claims. <a href="#disclaimer">Disclaimer</a> · <a href="#science">Science</a></div>
+          <div className="small">MONO. — B/W only. Cosmetic product. No disease claims. <a className="flink" href="#disclaimer">Disclaimer</a> · <a className="flink" href="#science">Science</a></div>
           <div className="small muted">© 2026 MONO. Demo storefront — formulas require GMP + counsel sign-off before sale. No backend: Vite static, cart + photo stay in your browser.</div>
         </div></footer>
       </div>
