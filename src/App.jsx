@@ -439,7 +439,7 @@ export default function App() {
             {NAV.map(([k, l]) => (
               <button type="button" key={k} className={route === k ? 'on' : ''} aria-current={route === k ? 'page' : undefined} onClick={() => go(k)}>{l}</button>
             ))}
-            <span className="pill" aria-live="polite" aria-atomic="true">Cart {cartApi.cart.length}</span>
+            <span className="cartpill" aria-live="polite" aria-atomic="true">Cart {cartApi.cart.length}</span>
           </nav>
         </div></header>
         <AnimatePresence mode="wait" initial={false}>
