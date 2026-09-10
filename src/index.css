@@ -106,3 +106,4 @@ textarea.txt { font: inherit; padding: 10px 12px; border: 1px solid var(--ink); 
 .btn.block { display: block; width: 100%; text-align: center; }
 .tlink { background: none; border: none; font: inherit; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 12px 4px; min-height: 44px; line-height: 20px; }
 .flink { display: inline-block; padding-top: 12px; padding-bottom: 12px; padding-left: 4px; padding-right: 4px; line-height: 20px; min-height: 44px; color: var(--ink); }
+.cartpill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; min-height: 44px; border: 1px solid var(--ink); border-radius: 999px; background: var(--ink); color: var(--paper); font-size: 14px; font-weight: 600; white-space: nowrap; line-height: 20px; }
