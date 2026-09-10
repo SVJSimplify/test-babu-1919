@@ -218,6 +218,13 @@ function Customizer({ preset, cartApi }) {
   const base = BASES[need]
   const sku = useMemo(() => toSKU({ need, flavor, intensity, sls, art }), [need, flavor, intensity, sls, art])
   const [step, setStep] = useState(1)
+  const [dir, setDir] = useState(1)
+  const goStep = (n) => { setDir(n >= step ? 1 : -1); setStep(n) }
+  const stepV = {
+    enter: (d) => ({ opacity: 0, x: 32 * (d >= 0 ? 1 : -1) }),
+    center: { opacity: 1, x: 0 },
+    exit: (d) => ({ opacity: 0, x: -32 * (d >= 0 ? 1 : -1) }),
+  }
   const pickFlavor = (code) => {
     if (FLAVORS[code].group === 'botanical' && !ack) return
     setFlavor(code)
@@ -242,6 +249,8 @@ function Customizer({ preset, cartApi }) {
       <p className="small muted">Actives stay locked (1450ppm fluoride, fixed sheets). You customize taste, intensity, foam, tube art, name, flavor note and design photo.</p>
       <div className="steps" aria-hidden="true"><span className={step >= 1 ? 'on' : ''} /><span className={step >= 2 ? 'on' : ''} /><span className={step >= 3 ? 'on' : ''} /></div>
       <p aria-live="polite" className="small">{msg}</p>
+      <AnimatePresence mode="wait" initial={false} custom={dir}>
+      <motion.div key={step} custom={dir} variants={stepV} initial="enter" animate="center" exit="exit" transition={{ duration: 0.28, ease: 'easeOut' }}>
       {step === 1 && (
         <div>
           <h2>01 Need = fixed base (locked %)</h2>
@@ -254,7 +263,7 @@ function Customizer({ preset, cartApi }) {
               </button>
             ))}
           </div>
-          <p><MBtn onClick={() => setStep(2)}>Next: taste + flavor</MBtn></p>
+          <p><MBtn onClick={() => goStep(2)}>Next: taste + flavor</MBtn></p>
         </div>
       )}
       {step === 2 && (
@@ -299,7 +308,7 @@ function Customizer({ preset, cartApi }) {
             <button type="button" aria-pressed={sls === 'F'} className={`optbtn ${sls === 'F' ? 'sel' : ''}`} style={{ width: 'auto' }} onClick={() => setSls('F')}><b>SLS-free</b><div className="small muted">low foam, same base</div></button>
             <button type="button" aria-pressed={sls === 'S'} className={`optbtn ${sls === 'S' ? 'sel' : ''}`} style={{ width: 'auto' }} onClick={() => setSls('S')}><b>Classic SLS</b><div className="small muted">more foam</div></button>
           </div>
-          <p className="row"><MBtn sec onClick={() => setStep(1)}>Back</MBtn><MBtn onClick={() => setStep(3)}>Next: design</MBtn></p>
+          <p className="row"><MBtn sec onClick={() => goStep(1)}>Back</MBtn><MBtn onClick={() => goStep(3)}>Next: design</MBtn></p>
         </div>
       )}
       {step === 3 && (
@@ -329,10 +338,12 @@ function Customizer({ preset, cartApi }) {
             <MBtn onClick={() => addPack('single', 12)}>Add — $12</MBtn>
             <MBtn sec onClick={() => addPack('3-pack', 29)}>3-pack — $29</MBtn>
             <MBtn sec onClick={() => addPack('sub', 10)}>Subscribe — $10/tube</MBtn>
-            <MBtn sec onClick={() => setStep(2)}>Back</MBtn>
+            <MBtn sec onClick={() => goStep(2)}>Back</MBtn>
           </div>
         </div>
       )}
+      </motion.div>
+      </AnimatePresence>
     </div>
   )
 }
