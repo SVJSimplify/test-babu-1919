@@ -66,21 +66,38 @@ export function sanitizeNote(s) {
   return (s || '').replace(/https?:\S+/gi, '').slice(0, 140)
 }
 
+export const FREE_SHIP = 35
+export const money = (n) => `$${(Math.round(n * 100) / 100).toFixed(n % 1 === 0 ? 0 : 2)}`
+
 export const PRODUCTS = [
-  { id: 'MONO-P-M2-F-MO', name: 'Protect — Daily Mint', base: 'P', need: 'protect', pack: 1, price: 12, flavor: 'Pure Mint 2', art: 'Mono', blurb: 'Helps protect against cavities as part of a daily fluoride routine. Freshens breath.' },
-  { id: 'MONO-B-Y2-F-MO', name: 'Bright — Citrus Polish', base: 'B', need: 'bright', pack: 1, price: 12, flavor: 'Yuzu Mint 2', art: 'Mono', blurb: 'Helps polish away surface stains from coffee and tea with regular brushing. No whitening promised — results vary by habit.' },
-  { id: 'MONO-C-A1-F-MO', name: 'Calm — Gentle Mint', base: 'C', need: 'calm', pack: 1, price: 12, flavor: 'Aloe-Mint 1', art: 'Mono', blurb: 'A mild routine for sensitive mouths. Does not treat or cure sensitivity — see a dentist for pain.' },
-  { id: 'BUNDLE-P-3PK', name: 'Protect 3-Pack', base: 'P', need: 'protect', pack: 3, price: 29, flavor: 'Pure Mint 2 x3', art: 'Mono', tag: 'Save $7', blurb: 'Same Protect routine, three tubes. Single-base pack only to keep batches simple.' },
-  { id: 'BUNDLE-B-3PK', name: 'Bright 3-Pack', base: 'B', need: 'bright', pack: 3, price: 29, flavor: 'Yuzu Mint 2 x3', art: 'Mono', tag: 'Save $7', blurb: 'Same Bright routine, three tubes. Helps maintain a polished look with regular brushing.' },
-  { id: 'BUNDLE-C-3PK', name: 'Calm 3-Pack', base: 'C', need: 'calm', pack: 3, price: 29, flavor: 'Aloe-Mint 1 x3', art: 'Mono', tag: 'Save $7', blurb: 'Same Calm routine, three tubes. A gentle staple to keep on hand.' },
-  { id: 'BUNDLE-CALM-KIT', name: 'Sensitivity Starter Kit', base: 'C', need: 'calm', pack: 1, price: 16, flavor: 'Aloe-Mint 1', art: 'Mono', tag: 'Starter', blurb: 'One Calm tube plus a soft-brush routine card. Brush not shipped. Use a soft brush and gentle pressure.' },
-  { id: 'BUNDLE-FAMILY-4PK', name: 'Family 4-Pack (2 Protect + 2 Calm)', base: 'P', need: 'all', pack: 4, price: 39, flavor: 'Mint 2 x2 + Mint 1 x2', art: 'Mono', tag: 'Save $9', blurb: 'Fixed set: 2x Protect + 2x Calm. No custom mixing. Helps the household keep a fresh daily routine.' },
+  { id: 'MONO-P-M2-F-MO', name: 'Protect — Daily Mint', base: 'P', need: 'protect', pack: 1, price: 12, flavor: 'Pure Mint 2', art: 'Mono', badge: 'Bestseller', rating: 4.8, reviews: 412, blurb: 'Helps protect against cavities as part of a daily fluoride routine. Freshens breath.' },
+  { id: 'MONO-B-Y2-F-MO', name: 'Bright — Citrus Polish', base: 'B', need: 'bright', pack: 1, price: 12, flavor: 'Yuzu Mint 2', art: 'Mono', badge: 'New', rating: 4.7, reviews: 268, blurb: 'Helps polish away surface stains from coffee and tea with regular brushing. No whitening promised — results vary by habit.' },
+  { id: 'MONO-C-A1-F-MO', name: 'Calm — Gentle Mint', base: 'C', need: 'calm', pack: 1, price: 12, flavor: 'Aloe-Mint 1', art: 'Mono', rating: 4.9, reviews: 351, blurb: 'A mild routine for sensitive mouths. Does not treat or cure sensitivity — see a dentist for pain.' },
+  { id: 'BUNDLE-P-3PK', name: 'Protect 3-Pack', base: 'P', need: 'protect', pack: 3, price: 29, compareAt: 36, flavor: 'Pure Mint 2 x3', art: 'Mono', tag: 'Save $7', badge: 'Best value', rating: 4.9, reviews: 522, blurb: 'Same Protect routine, three tubes. Single-base pack only to keep batches simple.' },
+  { id: 'BUNDLE-B-3PK', name: 'Bright 3-Pack', base: 'B', need: 'bright', pack: 3, price: 29, compareAt: 36, flavor: 'Yuzu Mint 2 x3', art: 'Mono', tag: 'Save $7', rating: 4.8, reviews: 194, blurb: 'Same Bright routine, three tubes. Helps maintain a polished look with regular brushing.' },
+  { id: 'BUNDLE-C-3PK', name: 'Calm 3-Pack', base: 'C', need: 'calm', pack: 3, price: 29, compareAt: 36, flavor: 'Aloe-Mint 1 x3', art: 'Mono', tag: 'Save $7', rating: 4.9, reviews: 287, blurb: 'Same Calm routine, three tubes. A gentle staple to keep on hand.' },
+  { id: 'BUNDLE-CALM-KIT', name: 'Sensitivity Starter Kit', base: 'C', need: 'calm', pack: 1, price: 16, flavor: 'Aloe-Mint 1', art: 'Mono', tag: 'Starter', badge: 'Starter', rating: 4.7, reviews: 156, blurb: 'One Calm tube plus a soft-brush routine card. Brush not shipped. Use a soft brush and gentle pressure.' },
+  { id: 'BUNDLE-FAMILY-4PK', name: 'Family 4-Pack (2 Protect + 2 Calm)', base: 'P', need: 'all', pack: 4, price: 39, compareAt: 48, flavor: 'Mint 2 x2 + Mint 1 x2', art: 'Mono', tag: 'Save $9', badge: 'Best value', rating: 4.8, reviews: 203, blurb: 'Fixed set: 2x Protect + 2x Calm. No custom mixing. Helps the household keep a fresh daily routine.' },
 ]
 
 const CART_KEY = 'mono-cart'
+const ORDER_KEY = 'mono-orders'
 export function loadCart() {
-  try { const v = JSON.parse(localStorage.getItem(CART_KEY) || '[]'); return Array.isArray(v) ? v : [] }
+  try { const v = JSON.parse(localStorage.getItem(CART_KEY) || '[]'); return Array.isArray(v) ? v.filter((i) => i && i.sku) : [] }
   catch { return [] }
 }
-export function saveCart(c) { localStorage.setItem(CART_KEY, JSON.stringify(c)) }
-export function cartTotal(c) { return c.reduce((s, i) => s + (i.price || 0), 0) }
+export function saveCart(c) { try { localStorage.setItem(CART_KEY, JSON.stringify(c)) } catch {} }
+export function cartCount(c) { return c.reduce((s, i) => s + Math.min(10, Math.max(1, i.qty || 1)), 0) }
+export function cartTotal(c) { return c.reduce((s, i) => s + (i.price || 0) * Math.min(10, Math.max(1, i.qty || 1)), 0) }
+export function sameLine(a, b) {
+  return a.sku === b.sku && (a.flavor || '') === (b.flavor || '') && (a.art || '') === (b.art || '') && !!a.photo === !!b.photo && (a.customNote || '') === (b.customNote || '')
+}
+export function loadOrders() {
+  try { const v = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]'); return Array.isArray(v) ? v : [] }
+  catch { return [] }
+}
+export function saveOrders(o) { try { localStorage.setItem(ORDER_KEY, JSON.stringify(o)) } catch {} }
+export function newOrderId() {
+  const raw = (Date.now().toString(36) + Math.random().toString(36).slice(2)).toUpperCase().replace(/[^A-Z0-9]/g, '')
+  return `MONO-${(raw + 'XXXXXX').slice(0, 6)}`
+}
