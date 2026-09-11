@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence, MotionConfig, useScroll, useSpring } from 'framer-motion'
-import { BASES, FLAVORS, CLINICAL, BOTANICAL, ARTS, PRODUCTS, FREE_SHIP, money, toSKU, validSKU, sanitizeName, sanitizeNote, loadCart, saveCart, cartCount, cartTotal, sameLine, loadOrders, saveOrders, newOrderId } from './lib/catalog.js'
+import { BASES, FLAVORS, CLINICAL, BOTANICAL, ARTS, PRODUCTS, MERCH, FREE_SHIP, money, toSKU, validSKU, isMerch, sanitizeName, sanitizeNote, loadCart, saveCart, cartCount, cartTotal, sameLine, loadOrders, saveOrders, newOrderId } from './lib/catalog.js'
 
-const ROUTES = ['home', 'shop', 'customize', 'science', 'plan', 'faq', 'disclaimer', 'checkout']
-const TITLES = { home: 'MONO. — Toothpaste, reduced to what works', shop: 'Shop — MONO.', customize: 'Customize — MONO.', science: 'Science — MONO.', plan: 'Our plan — MONO.', faq: 'FAQ — MONO.', disclaimer: 'Disclaimer — MONO.', checkout: 'Checkout — MONO.' }
-const NAV = [['home', 'Shop'], ['shop', 'All products'], ['customize', 'Customize'], ['science', 'Science'], ['plan', 'Plan'], ['faq', 'FAQ']]
+const ROUTES = ['home', 'shop', 'merch', 'customize', 'science', 'plan', 'faq', 'disclaimer', 'checkout']
+const TITLES = { home: 'MONO. — Toothpaste, reduced to what works', shop: 'Shop — MONO.', merch: 'Merch — MONO.', customize: 'Customize — MONO.', science: 'Science — MONO.', plan: 'Our plan — MONO.', faq: 'FAQ — MONO.', disclaimer: 'Disclaimer — MONO.', checkout: 'Checkout — MONO.' }
+const NAV = [['home', 'Shop'], ['shop', 'All products'], ['merch', 'Merch'], ['customize', 'Customize'], ['science', 'Science'], ['plan', 'Plan'], ['faq', 'FAQ']]
 function useHash() {
   const get = () => (window.location.hash || '#home').replace('#', '').split('?')[0] || 'home'
   const [r, setR] = useState(ROUTES.includes(get()) ? get() : 'home')
@@ -150,91 +150,108 @@ function ProductCard({ p, onAdd, index }) {
   )
 }
 
-function CartDrawer({ cart, go }) {
-  const { items, setQty, removeAt, open, setOpen, msg, total, count } = cart
-  const closeRef = useRef(null)
-  const opener = useRef(null)
+const AD_LINES = ['Brush twice.', 'Same base. Every tube.', 'Taste is a choice.', 'No color. No noise.']
+function BrandAd({ go }) {
+  const [i, setI] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const [reduced] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   useEffect(() => {
-    if (open) {
-      opener.current = document.activeElement
-      document.body.style.overflow = 'hidden'
-      if (closeRef.current) closeRef.current.focus()
-    } else {
-      document.body.style.overflow = ''
-      if (opener.current && opener.current.focus) opener.current.focus()
-    }
-    return () => { document.body.style.overflow = '' }
-  }, [open])
-  const away = Math.max(0, FREE_SHIP - total)
-  const trap = (e) => {
-    if (e.key === 'Escape') { setOpen(false); return }
-    if (e.key !== 'Tab') return
-    const box = e.currentTarget
-    const f = box.querySelectorAll('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
-    const list = Array.from(f).filter((el) => !el.disabled)
-    if (!list.length) return
-    const first = list[0], last = list[list.length - 1]
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
-  }
+    if (reduced || paused) return
+    const id = setInterval(() => setI((v) => (v + 1) % AD_LINES.length), 3000)
+    return () => clearInterval(id)
+  }, [reduced, paused])
   return (
-    <AnimatePresence>
-      {open && (
-        <div onKeyDown={trap}>
-          <motion.div className="drawer-ov" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} onClick={() => setOpen(false)} aria-hidden="true" />
-          <motion.aside className="drawer" role="dialog" aria-modal="true" aria-label="Shopping cart" id="cart-drawer"
-            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', stiffness: 320, damping: 32, mass: 0.9 }}>
-            <div className="drawer-head">
-              <h2 style={{ margin: 0 }}>Your cart ({count})</h2>
-              <button type="button" ref={closeRef} className="btn sec" style={{ padding: '8px 16px' }} onClick={() => setOpen(false)} aria-label="Close cart">Close</button>
-            </div>
-            <div className="drawer-body">
-              <p aria-live="polite" className="small">{msg}</p>
-              {items.length === 0 && (
-                <div>
-                  <p><b>Your cart is empty.</b></p>
-                  <p className="small muted">Start with Protect — Daily Mint.</p>
-                  <MBtn onClick={() => { setOpen(false); go('shop') }}>Shop bestsellers</MBtn>
-                </div>
-              )}
-              {items.map((c) => (
-                <div className="lineitem" key={c.ts}>
-                  <div className={`minism ${c.sku.includes('-B-') || c.sku.startsWith('BUNDLE-B') ? 'dot' : c.sku.includes('-C-') || c.sku.startsWith('BUNDLE-CALM') ? '' : 'stripe'}`} aria-hidden="true" />
-                  <div style={{ flex: 1 }}>
-                    <b className="small">{c.label}</b>
-                    <p className="small muted" style={{ margin: '2px 0' }}>{c.flavor} · {c.pack}-pack · {money(c.price)}{c.photo ? ' · photo ref' : ''}</p>
-                    {c.customNote ? <p className="small muted" style={{ margin: '2px 0' }}>Note: {c.customNote}</p> : null}
-                    <div className="row" style={{ alignItems: 'center', marginTop: 6 }}>
-                      <span className="stepper">
-                        <button type="button" disabled={(c.qty || 1) <= 1} onClick={() => setQty(c.ts, (c.qty || 1) - 1)} aria-label={`Decrease quantity for ${c.label}`}>−</button>
-                        <output aria-live="polite" aria-label={`Quantity for ${c.label}`}>{c.qty || 1}</output>
-                        <button type="button" disabled={(c.qty || 1) >= 10} onClick={() => setQty(c.ts, (c.qty || 1) + 1)} aria-label={`Increase quantity for ${c.label}`}>+</button>
-                      </span>
-                      <button type="button" className="tlink" onClick={() => removeAt(c.ts)} aria-label={`Remove ${c.label} from cart`}>Remove</button>
-                    </div>
-                  </div>
-                </div>
+    <section className="adfilm" aria-roledescription="carousel" aria-label="MONO brand messages"
+      onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
+      <div className="adfilm-in">
+        <p className="eyebrow">MONO film — 01 / Routine</p>
+        <div aria-live="off">
+          {reduced ? (
+            <blockquote>{AD_LINES[0]}</blockquote>
+          ) : (
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.blockquote key={i} aria-roledescription="slide" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -24 }} transition={{ duration: 0.45, ease: 'easeOut' }}>
+                {AD_LINES[i]}
+              </motion.blockquote>
+            </AnimatePresence>
+          )}
+        </div>
+        <p className="sub small">Plain toothpaste. Pick a flavor, keep the routine.</p>
+        <p><a href="#shop" className="cta" onClick={(e) => { e.preventDefault(); go('shop') }}>Shop the routine</a></p>
+        {!reduced && (
+          <div>
+            <div className="addots" role="group" aria-label="Choose message">
+              {AD_LINES.map((l, n) => (
+                <button type="button" key={l} onClick={() => setI(n)} aria-label={`Show message ${n + 1}: ${l}`} aria-current={n === i ? 'true' : 'false'}><span style={{ width: n === i ? 28 : 12 }} /></button>
               ))}
             </div>
-            {items.length > 0 && (
-              <div className="drawer-foot">
-                {away > 0
-                  ? <p className="small">You are <b>{money(away)}</b> away from free shipping</p>
-                  : <p className="small"><b>Free shipping unlocked ✓</b></p>}
-                <div className="shipbar" role="progressbar" aria-valuemin={0} aria-valuemax={FREE_SHIP} aria-valuenow={Math.min(total, FREE_SHIP)} aria-label="Progress to free shipping">
-                  <div style={{ width: `${Math.min(100, (total / FREE_SHIP) * 100)}%` }} />
-                </div>
-                <p style={{ display: 'flex', justifyContent: 'space-between' }}><b>Subtotal</b><b>{money(total)}</b></p>
-                <div className="row">
-                  <MBtn block onClick={() => { setOpen(false); go('checkout') }}>Checkout</MBtn>
-                  <MBtn sec block onClick={() => setOpen(false)}>Continue shopping</MBtn>
-                </div>
-              </div>
-            )}
-          </motion.aside>
+            <button type="button" className="adpause" onClick={() => setPaused(!paused)} aria-pressed={paused}>{paused ? 'Play messages' : 'Pause messages'}</button>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+function MethodStrip({ go }) {
+  const bars = [['Base — 1st · 1450 ppm NaF, fixed', 100], ['Taste — 2nd · botanicals are taste-only', 50], ['Design — 3rd · aesthetics only', 20]]
+  return (
+    <div style={{ background: 'var(--mist)' }}><div className="wrap section">
+      <Reveal><p className="small sku">Our methodology</p><h2>Fluoride first. Taste second. Design last.</h2>
+        <p className="muted">Three fixed bases at 1450 ppm fluoride. Pick a clinical flavor first, a botanical second, your design last.</p></Reveal>
+      <div className="grid3">
+        {[['01 — Clinical base', 'The non-negotiable. Same fluoride level in every option, formulated to help protect with twice-daily brushing.'], ['02 — Taste', 'Choice, not therapy. Clinical flavors first, botanicals second for taste only.'], ['03 — Design', 'Yours. Tube, name, artwork. Personal preference only.']].map(([t, d]) => (
+          <Reveal key={t}><div className="card"><b>{t}</b><p className="small">{d}</p></div></Reveal>
+        ))}
+      </div>
+      <div className="methodbars" style={{ marginTop: 16 }} aria-label="What matters most">
+        {bars.map(([t, w]) => (
+          <div key={t}><span className="small" style={{ minWidth: 220 }}>{t}</span><span className="bar"><div style={{ width: `${w}%` }} /></span></div>
+        ))}
+      </div>
+      <p><MBtn sec onClick={() => go('science')}>Read the science</MBtn></p>
+    </div></div>
+  )
+}
+const MERCH_GLYPH = { Tee: 'T', Tote: 'O', Mug: 'M', Case: 'C', Stickers: 'S', Poster: 'P' }
+function MerchCard({ m, index, onAdd }) {
+  const [size, setSize] = useState(m.sizes ? 'M' : 'OS')
+  return (
+    <motion.article className="card shopcard" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(index, 8) * 0.05 }} whileHover={{ y: -4 }}>
+      <div className="merchsw" aria-hidden="true"><div className="merchglyph">{MERCH_GLYPH[m.art] || 'M'}</div></div>
+      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+        <div style={{ minHeight: 26 }}>{m.badge ? <span className={`badge ${m.badge === 'Bestseller' ? 'solid' : 'line'}`}>{m.badge}</span> : <span className="badge spacer">—</span>}</div>
+        <h3 style={{ margin: '4px 0' }}>{m.name}</h3>
+        <p className="small muted" style={{ margin: 0 }}>{m.flavor}</p>
+        <Stars rating={m.rating} reviews={m.reviews} />
+        <p className="small" style={{ margin: 0 }}>{m.blurb}</p>
+        <p style={{ margin: '4px 0' }}><b>{money(m.price)}</b>{m.compareAt && <span className="small muted"> <s>{money(m.compareAt)}</s></span>}</p>
+        {m.sizes && (
+          <div className="sizepills" role="group" aria-label={`${m.name} size`}>
+            {m.sizes.map((s) => (
+              <button type="button" key={s} className="sizepill" aria-pressed={size === s} aria-label={`Size ${s}`} onClick={() => setSize(s)}>{s}</button>
+            ))}
+          </div>
+        )}
+        <div style={{ marginTop: 'auto', paddingTop: 8 }}>
+          <AddBtn onAdd={() => onAdd(m, size)} label={size !== 'OS' ? `${m.name} size ${size}` : m.name} price={m.price} />
         </div>
-      )}
-    </AnimatePresence>
+      </div>
+    </motion.article>
+  )
+}
+function Merch({ cart }) {
+  return (
+    <div className="wrap">
+      <h1>Merch. Black and white.</h1>
+      <p className="muted">Wear the routine. Same free shipping over {money(FREE_SHIP)}.</p>
+      <p aria-live="polite" className="small">{cart.msg}</p>
+      <div className="shopgrid" style={{ marginTop: 12 }}>
+        {MERCH.map((m, i) => (
+          <MerchCard key={m.id} m={m} index={i} onAdd={(x, size) => cart.add({ sku: x.id, label: x.name + (size && size !== 'OS' ? ` (${size})` : ''), pack: size || 'OS', price: x.price, flavor: x.flavor, art: x.art, photo: false, customNote: '' })} />
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -269,6 +286,7 @@ function Home({ go, cart }) {
           <div role="listitem" key={t}><b className="small">{t}</b><p className="small muted" style={{ margin: '4px 0 0' }}>{d}</p></div>
         ))}
       </div></div>
+      <BrandAd go={go} />
       <div className="wrap section" id="bestsellers">
         <Reveal><h2>Bestsellers</h2></Reveal>
         <motion.div className="shopgrid" variants={gridP} initial="h" whileInView="s" viewport={{ once: true, margin: '-60px' }}>
@@ -288,6 +306,7 @@ function Home({ go, cart }) {
         </div>
         <p><MBtn sec onClick={() => go('customize')}>Start customizing</MBtn></p>
       </div></div>
+      <MethodStrip go={go} />
       <div className="wrap section">
         <Reveal><h2>Loved for taste + routine</h2></Reveal>
         <p className="small muted">Real routines, in their words. Taste and routine only — not health outcomes.</p>
@@ -549,7 +568,7 @@ function Science() {
       ))}
       <h2>Flavor library</h2>
       <div className="tscroll"><table className="t"><thead><tr><th scope="col">Group</th><th scope="col">Flavors</th><th scope="col">Benefit claim</th></tr></thead><tbody>
-        <tr><td>Clinical (1st)</td><td>Pure Mint, Yuzu Mint, Eucalyptus</td><td>Freshens breath/feeling (C)</td></tr>
+        <tr><td>Clinical (1st)</td><td>Pure Mint, Yuzu Mint, Eucalyptus, Spearmint, Wintergreen, Berry Frost</td><td>Freshens breath/feeling (C)</td></tr>
         <tr><td>Botanical (2nd)</td><td>{BOTANICAL.map((k) => FLAVORS[k].name).join(', ')}</td><td>Taste only — none</td></tr>
       </tbody></table></div>
       <h2>Why fluoride 1450 ppm only</h2>
@@ -561,6 +580,7 @@ function Science() {
         <tr><td>Directions</td><td>Adults + 6y: brush 2x/day, spit, do not swallow. 2–6y: pea-size, supervised. Under 2y: ask dentist.</td></tr>
         <tr><td>SLS</td><td>Safe as formulated; irritant for some. SLS-free option offered.</td></tr>
         <tr><td>Botanicals</td><td>Clove/cinnamon carry eugenol/cinnamal allergy risk; fennel/tulsi carry trace allergens. Stop use if irritated.</td></tr>
+        <tr><td>Wintergreen + new botanicals</td><td>Wintergreen (methyl salicylate) kept at a low dose; adult use, keep from children. Cardamom, ginger and rose carry trace fragrance allergens. Stop use if irritated.</td></tr>
         <tr><td>Home mixing</td><td>Unsafe: breaks ppm uniformity, stability, micro. Factory base choice only.</td></tr>
       </tbody></table></div>
       <div style={{ marginTop: 16 }}><VerifyPanel sku="MONO-P-M2-F-MO" base={BASES.P} /></div>
@@ -598,6 +618,7 @@ function Faq() {
     ['Do you guarantee whiter teeth?', 'No. Polish of surface stains for brighter-looking smile. No bleach, no shade guarantee.'],
     ['Fluoride-free option?', 'No. 1450 ppm NaF only at MVP. Evidence for caries is fluoride.'],
     ['Are botanical flavors stronger or more protective?', 'No. Taste only, same fluoride base. Natural does not mean safer — clove/cinnamon can irritate.'],
+    ['Why are naturals second?', 'The evidence for caries protection at this level is fluoride with regular brushing. Botanicals are included for taste only — they do not change fluoride content or protection. Natural does not automatically mean safer.'],
     ['SLS-free = no irritation for all?', 'No. Milder for many, no universal promise. Stop if irritated, see dentist.'],
     ['Can I pick my own active %?', 'No. Locked factory sheets. Home mixing is unsafe. You customize taste, intensity, foam, art, name, note and photo.'],
     ['Can I supply my own flavor oil or print file?', 'No oils. One B/W reference photo max, reviewed before print, may be simplified or declined.'],
@@ -736,7 +757,7 @@ function Checkout({ cart, go }) {
           <div>
             <h2>Order summary</h2>
             {items.map((c) => (
-              <p key={c.ts} className="small"><b>{c.label}</b> × {c.qty || 1}<br />{c.flavor} · {money(c.price * (c.qty || 1))}</p>
+              <p key={c.ts} className="small"><b>{c.label}</b> × {c.qty || 1}<br />{isMerch(c.sku) ? c.flavor : `${c.flavor} · ${c.pack}-pack`} · {money(c.price * (c.qty || 1))}</p>
             ))}
             <p className="small">Subtotal: {money(total)}<br />Shipping: {ship === 0 ? 'Free' : money(ship)}<br /><b>Total: {money(total + ship)}</b></p>
           </div>
@@ -776,7 +797,7 @@ function SiteFooter({ go }) {
           <div className="brand" style={{ color: '#fff', marginBottom: 8 }}>MONO.</div>
           <p className="small" style={{ color: '#cfcfcf' }}>Black-and-white toothpaste. Fixed bases, your taste, your design.</p>
         </div>
-        {col('Shop', [['shop', 'All products'], ['customize', 'Customize'], ['shop', '3-Packs'], ['shop', 'Starter kit']])}
+        {col('Shop', [['shop', 'All products'], ['customize', 'Customize'], ['merch', 'Merch'], ['shop', '3-Packs']])}
         {col('Help', [['faq', 'FAQ'], ['disclaimer', 'Disclaimer'], ['checkout', 'Checkout'], ['science', 'Ingredients']])}
         {col('Company', [['plan', 'Our plan'], ['science', 'Science'], ['home', 'Bestsellers']])}
       </div>
@@ -830,6 +851,7 @@ export default function App() {
           <motion.main id="main" tabIndex={-1} aria-label="Main content" key={route} ref={mainRef} {...fade}>
             {route === 'home' && <Home go={go} cart={cart} />}
             {route === 'shop' && <Shop cart={cart} />}
+            {route === 'merch' && <Merch cart={cart} />}
             {route === 'customize' && <Customizer preset={preset} cart={cart} />}
             {route === 'science' && <Science />}
             {route === 'plan' && <Plan />}
