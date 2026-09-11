@@ -194,3 +194,7 @@ footer.site .muted, footer.site .small.muted { color: #cfcfcf; }
 .curgroup { display: inline-flex; border: 1px solid var(--ink); border-radius: 999px; overflow: hidden; flex-shrink: 0; }
 .curgroup button { background: #fff; color: #000; border: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; min-height: 44px; min-width: 44px; padding: 0 14px; white-space: nowrap; }
 .curgroup button[aria-pressed="true"] { background: #000; color: #fff; }
+button, a { touch-action: manipulation; }
+.price-flip { display: inline-block; }
+.adfilm button.cta { border: none; font: inherit; cursor: pointer; }
+.marquee:active .marquee-track { animation-play-state: paused; }
