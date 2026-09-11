@@ -672,12 +672,12 @@ function Checkout({ cart, go }) {
   }
   const field = (k, label, props, hint) => (
     <div className="field">
-      <label htmlFor={`co-${k}`}>{label}</label>
+      <label htmlFor={'co-' + k}>{label}</label>
       {props.textarea
-        ? <textarea id={`co-${k}`} value={f[k]} onChange={(e) => set(k, e.target.value)} aria-invalid={!!errs[k]} aria-describedby={errs[k] ? `co-${k}-err` : undefined} rows={props.rows || 2} />
-        : <input id={`co-${k}`} value={f[k]} onChange={(e) => set(k, e.target.value)} aria-invalid={!!errs[k]} aria-describedby={errs[k] ? `co-${k}-err` : undefined} {...props} />}
+        ? <textarea id={'co-' + k} value={f[k]} onChange={(e) => set(k, e.target.value)} aria-invalid={!!errs[k]} aria-describedby={errs[k] ? 'co-' + k + '-err' : undefined} rows={props.rows || 2} />
+        : <input id={'co-' + k} value={f[k]} onChange={(e) => set(k, e.target.value)} aria-invalid={!!errs[k]} aria-describedby={errs[k] ? 'co-' + k + '-err' : undefined} {...props} />}
       {hint && <p className="small muted" style={{ margin: '4px 0 0' }}>{hint}</p>}
-      {errs[k] && <p className="small err" id={`co-${k}-err`}>{errs[k]}</p>}
+      {errs[k] && <p className="small err" id={'co-' + k + '-err'}>{errs[k]}</p>}
     </div>
   )
   if (placed) {
@@ -718,7 +718,7 @@ function Checkout({ cart, go }) {
               <div className="errbox" role="alert" tabIndex={-1} ref={sumRef} aria-labelledby="err-h">
                 <h2 id="err-h" style={{ margin: '0 0 8px' }}>{Object.keys(errs).length} field{Object.keys(errs).length > 1 ? 's need' : ' needs'} attention</h2>
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  {Object.entries(errs).map(([k, v]) => (<li key={k}><a href={`#co-${k}`}>{v}</a></li>))}
+                  {Object.entries(errs).map(([k, v]) => (<li key={k}><button type="button" className="tlink" onClick={() => { const el = document.getElementById('co-' + k); if (el) el.focus() }}>{v}</button></li>))}
                 </ul>
               </div>
             )}
@@ -766,7 +766,7 @@ function SiteFooter({ go }) {
   const col = (h, links) => (
     <div>
       <h4>{h}</h4>
-      {links.map(([r, l], i) => (<div key={`${l}-${i}`}><a href={`#${r}`} onClick={(e) => { e.preventDefault(); go(r) }}>{l}</a></div>))}
+      {links.map(([r, l], i) => (<div key={l + '-' + i}><a href={'#' + r} onClick={(e) => { e.preventDefault(); go(r) }}>{l}</a></div>))}
     </div>
   )
   return (
