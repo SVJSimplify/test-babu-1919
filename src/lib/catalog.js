@@ -74,8 +74,31 @@ export function sanitizeNote(s) {
   return (s || '').replace(/https?:\S+/gi, '').slice(0, 140)
 }
 
-export const FREE_SHIP = 35
-export const money = (n) => `$${(Math.round(n * 100) / 100).toFixed(n % 1 === 0 ? 0 : 2)}`
+export const RATE = 83
+export const CUR_KEY = 'mono-cur'
+export const THRESH = { USD: { free: 35, ship: 4.95 }, INR: { free: 999, ship: 49 } }
+let ACTIVE_CUR = 'USD'
+try { if (localStorage.getItem(CUR_KEY) === 'INR') ACTIVE_CUR = 'INR' } catch {}
+export const getCur = () => ACTIVE_CUR
+export const setCur = (c) => { ACTIVE_CUR = c === 'INR' ? 'INR' : 'USD'; try { localStorage.setItem(CUR_KEY, ACTIVE_CUR) } catch {} }
+export const toInr = (usd) => Math.round((usd * RATE) / 10) * 10 - 1
+export function fmtNative(n, cur) {
+  const c = cur === 'INR' ? 'INR' : 'USD'
+  if (c === 'INR') return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n)
+  const d = Number.isInteger(n) ? 0 : 2
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: d, maximumFractionDigits: d }).format(n)
+}
+export const cash = (n) => fmtNative(n, ACTIVE_CUR)
+export const money = (usd) => fmtNative(ACTIVE_CUR === 'INR' ? toInr(usd) : usd, ACTIVE_CUR)
+export const freeShip = () => THRESH[ACTIVE_CUR].free
+export const shipFee = () => THRESH[ACTIVE_CUR].ship
+export function cartTotalActive(c) {
+  return c.reduce((s, i) => {
+    const q = Math.min(10, Math.max(1, i.qty || 1))
+    const unit = ACTIVE_CUR === 'INR' ? toInr(i.price || 0) : (i.price || 0)
+    return s + unit * q
+  }, 0)
+}
 
 export const PRODUCTS = [
   { id: 'MONO-P-M2-F-MO', name: 'Protect — Daily Mint', base: 'P', need: 'protect', pack: 1, price: 12, flavor: 'Pure Mint 2', art: 'Mono', badge: 'Bestseller', rating: 4.8, reviews: 412, blurb: 'Helps protect against cavities as part of a daily fluoride routine. Freshens breath.' },
