@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence, MotionConfig, useScroll, useSpring } from 'framer-motion'
-import { BASES, FLAVORS, CLINICAL, BOTANICAL, ARTS, PRODUCTS, MERCH, FREE_SHIP, money, toSKU, validSKU, isMerch, sanitizeName, sanitizeNote, loadCart, saveCart, cartCount, cartTotal, sameLine, loadOrders, saveOrders, newOrderId } from './lib/catalog.js'
+import { BASES, FLAVORS, CLINICAL, BOTANICAL, ARTS, PRODUCTS, MERCH, money, cash, fmtNative, toInr, toSKU, validSKU, isMerch, sanitizeName, sanitizeNote, loadCart, saveCart, cartCount, cartTotal, cartTotalActive, sameLine, loadOrders, saveOrders, newOrderId, getCur, setCur, freeShip, shipFee } from './lib/catalog.js'
 
 const ROUTES = ['home', 'shop', 'merch', 'customize', 'science', 'plan', 'faq', 'disclaimer', 'checkout']
 const TITLES = { home: 'MONO. — Toothpaste, reduced to what works', shop: 'Shop — MONO.', merch: 'Merch — MONO.', customize: 'Customize — MONO.', science: 'Science — MONO.', plan: 'Our plan — MONO.', faq: 'FAQ — MONO.', disclaimer: 'Disclaimer — MONO.', checkout: 'Checkout — MONO.' }
@@ -128,7 +128,7 @@ function useCart() {
     if (gone) setMsg(`${gone.label} removed`)
   }
   const clear = () => commit([])
-  return { items, add, setQty, removeAt, clear, open, setOpen, msg, count: cartCount(items), total: cartTotal(items) }
+  return { items, add, setQty, removeAt, clear, open, setOpen, msg, count: cartCount(items), total: cartTotal(items), totalA: cartTotalActive(items) }
 }
 
 function ProductCard({ p, onAdd, index }) {
@@ -147,6 +147,94 @@ function ProductCard({ p, onAdd, index }) {
         <div style={{ marginTop: 'auto', paddingTop: 8 }}><AddBtn onAdd={() => onAdd(p)} label={p.name} price={p.price} /></div>
       </div>
     </motion.article>
+  )
+}
+
+function CartDrawer({ cart, go }) {
+  const { items, setQty, removeAt, open, setOpen, msg, totalA, count } = cart
+  const closeRef = useRef(null)
+  const opener = useRef(null)
+  useEffect(() => {
+    if (open) {
+      opener.current = document.activeElement
+      document.body.style.overflow = 'hidden'
+      if (closeRef.current) closeRef.current.focus()
+    } else {
+      document.body.style.overflow = ''
+      if (opener.current && opener.current.focus) opener.current.focus()
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [open ])
+  const away = Math.max(0, freeShip() - totalA)
+  const trap = (e) => {
+    if (e.key === 'Escape') { setOpen(false); return }
+    if (e.key !== 'Tab') return
+    const box = e.currentTarget
+    const f = box.querySelectorAll('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    const list = Array.from(f).filter((el) => !el.disabled)
+    if (!list.length) return
+    const first = list[0], last = list[list.length - 1]
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+  }
+  return (
+    <AnimatePresence>
+      {open && (
+        <div onKeyDown={trap}>
+          <motion.div className="drawer-ov" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} onClick={() => setOpen(false)} aria-hidden="true" />
+          <motion.aside className="drawer" role="dialog" aria-modal="true" aria-label="Shopping cart" id="cart-drawer"
+            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', stiffness: 320, damping: 32, mass: 0.9 }}>
+            <div className="drawer-head">
+              <h2 style={{ margin: 0 }}>Your cart ({count})</h2>
+              <button type="button" ref={closeRef} className="btn sec" style={{ padding: '8px 16px' }} onClick={() => setOpen(false)} aria-label="Close cart">✕</button>
+            </div>
+            <div className="drawer-body">
+              <p aria-live="polite" className="small">{msg}</p>
+              {items.length === 0 && (
+                <div>
+                  <p><b>Your cart is empty.</b></p>
+                  <p className="small muted">Start with Protect — Daily Mint.</p>
+                  <MBtn onClick={() => { setOpen(false); go('shop') }}>Shop bestsellers</MBtn>
+                </div>
+              )}
+              {items.map((c) => (
+                <div className="lineitem" key={c.ts}>
+                  <div className={`minism ${isMerch(c.sku) ? '' : c.sku.includes('-B-') || c.sku.startsWith('BUNDLE-B') ? 'dot' : c.sku.includes('-C-') || c.sku.startsWith('BUNDLE-CALM') ? '' : 'stripe'}`} aria-hidden="true" />
+                  <div style={{ flex: 1 }}>
+                    <b className="small">{c.label}</b>
+                    <p className="small muted" style={{ margin: '2px 0' }}>{isMerch(c.sku) ? c.flavor : `${c.flavor} · ${c.pack}-pack`} · {money(c.price)}{c.photo ? ' · photo ref' : ''}</p>
+                    {c.customNote ? <p className="small muted" style={{ margin: '2px 0' }}>Note: {c.customNote}</p> : null}
+                    <div className="row" style={{ alignItems: 'center', marginTop: 6 }}>
+                      <span className="stepper">
+                        <button type="button" disabled={(c.qty || 1) <= 1} onClick={() => setQty(c.ts, (c.qty || 1) - 1)} aria-label={`Decrease quantity for ${c.label}`}>−</button>
+                        <output aria-live="polite" aria-label={`Quantity for ${c.label}`}>{c.qty || 1}</output>
+                        <button type="button" disabled={(c.qty || 1) >= 10} onClick={() => setQty(c.ts, (c.qty || 1) + 1)} aria-label={`Increase quantity for ${c.label}`}>+</button>
+                      </span>
+                      <button type="button" className="tlink" onClick={() => removeAt(c.ts)} aria-label={`Remove ${c.label} from cart`}>Remove</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {items.length > 0 && (
+              <div className="drawer-foot">
+                {away > 0
+                  ? <p className="small">You are <b>{cash(away)}</b> away from free shipping</p>
+                  : <p className="small"><b>Free shipping unlocked ✓</b></p>}
+                <div className="shipbar" role="progressbar" aria-valuemin={0} aria-valuemax={freeShip()} aria-valuenow={Math.min(totalA, freeShip())} aria-label="Progress to free shipping">
+                  <div style={{ width: `${Math.min(100, (totalA / freeShip()) * 100)}%` }} />
+                </div>
+                <p style={{ display: 'flex', justifyContent: 'space-between' }}><b>Subtotal</b><b>{cash(totalA)}</b></p>
+                <div className="row">
+                  <MBtn block onClick={() => { setOpen(false); go('checkout') }}>Checkout</MBtn>
+                  <MBtn sec block onClick={() => setOpen(false)}>Continue shopping</MBtn>
+                </div>
+              </div>
+            )}
+          </motion.aside>
+        </div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -244,7 +332,7 @@ function Merch({ cart }) {
   return (
     <div className="wrap">
       <h1>Merch. Black and white.</h1>
-      <p className="muted">Wear the routine. Same free shipping over {money(FREE_SHIP)}.</p>
+      <p className="muted">Wear the routine. Same free shipping over {cash(freeShip())}.</p>
       <p aria-live="polite" className="small">{cart.msg}</p>
       <div className="shopgrid" style={{ marginTop: 12 }}>
         {MERCH.map((m, i) => (
@@ -301,7 +389,7 @@ function Home({ go, cart }) {
         <Reveal><h2>How it works</h2></Reveal>
         <div className="grid3">
           {[['01 — Pick your base', '3 fixed formulas. All with 1450 ppm fluoride.'], ['02 — Pick your taste', 'Clinical or botanical taste. Botanicals for flavor only.'], ['03 — Keep the habit', 'Brush twice daily for 2 minutes. Helps freshen breath and polish with daily brushing.']].map(([t, d]) => (
-            <Reveal key={t}><div className="card"><b>{t}</b><p className="small">{d}</p></div></Reveal>
+            <Reveal key={t}><div className="card"><b>{t}</b><p className="small">{d}</p></div>
           ))}
         </div>
         <p><MBtn sec onClick={() => go('customize')}>Start customizing</MBtn></p>
@@ -348,7 +436,7 @@ function Shop({ cart }) {
   return (
     <div className="wrap">
       <h1>Shop</h1>
-      <p className="muted">Fixed bases, fixed prices. Singles $12 · 3-packs $29 · subscription $10/tube · kits as marked.</p>
+      <p className="muted">Fixed bases, fixed prices. Singles {money(12)} · 3-packs {money(29)} · subscription {money(10)}/tube · kits as marked.</p>
       <div className="searchrow">
         <div className="field grow" style={{ marginBottom: 0 }}>
           <label htmlFor="shop-q">Search products</label>
@@ -532,9 +620,9 @@ function Customizer({ preset, cart }) {
               <div style={{ marginTop: 16 }}><VerifyPanel sku={sku} base={base} /></div>
               <p aria-live="polite" className="small sku">{sku}</p>
               <div className="row" style={{ marginTop: 12 }}>
-                <MBtn onClick={() => addPack('single', 12)}>Add — $12</MBtn>
-                <MBtn sec onClick={() => addPack('3-pack', 29)}>3-pack — $29</MBtn>
-                <MBtn sec onClick={() => addPack('sub', 10)}>Subscribe — $10/tube</MBtn>
+                <MBtn onClick={() => addPack('single', 12)}>Add — {money(12)}</MBtn>
+                <MBtn sec onClick={() => addPack('3-pack', 29)}>3-pack — {money(29)}</MBtn>
+                <MBtn sec onClick={() => addPack('sub', 10)}>Subscribe — {money(10)}/tube</MBtn>
                 <MBtn sec onClick={() => goStep(2)}>Back</MBtn>
               </div>
             </div>
@@ -544,8 +632,8 @@ function Customizer({ preset, cart }) {
       {step === 3 && (
         <div className="stickybar">
           <div className="stickybar-in">
-            <div style={{ flex: 1 }}><p className="small" style={{ margin: 0 }}>{FLAVORS[flavor].name} {intensity}</p><p style={{ margin: 0 }}><b>$12</b></p></div>
-            <MBtn onClick={() => addPack('single', 12)}>Add — $12</MBtn>
+            <div style={{ flex: 1 }}><p className="small" style={{ margin: 0 }}>{FLAVORS[flavor].name} {intensity}</p><p style={{ margin: 0 }}><b>{money(12)}</b></p></div>
+            <MBtn onClick={() => addPack('single', 12)}>Add — {money(12)}</MBtn>
           </div>
         </div>
       )}
@@ -592,7 +680,7 @@ function Plan() {
   return (
     <div className="wrap">
       <Reveal><h1>Business plan — lean, realistic</h1></Reveal>
-      <p className="muted">MONO. — black-and-white DTC. Customization without custom drug compounding.</p>
+      <p className="muted">MONO. — black-and-white DTC. Customization without custom drug compounding. All figures in USD.</p>
       <div className="grid3">
         <div className="card"><b>Model</b><p className="small">3 base SKUs x clinical + botanical factory-dosed flavors. Tube art + name + photo ref = cosmetic layer. $12 / $29 3-pack / $10 sub.</p></div>
         <div className="card"><b>Why hard</b><p className="small">Fluoride = OTC drug (21 CFR 355). GMP facility, stability + micro USP 61/62, Drug Facts, lot traceability required. Each botanical flavor = one pre-validated SKU.</p></div>
@@ -622,7 +710,7 @@ function Faq() {
     ['SLS-free = no irritation for all?', 'No. Milder for many, no universal promise. Stop if irritated, see dentist.'],
     ['Can I pick my own active %?', 'No. Locked factory sheets. Home mixing is unsafe. You customize taste, intensity, foam, art, name, note and photo.'],
     ['Can I supply my own flavor oil or print file?', 'No oils. One B/W reference photo max, reviewed before print, may be simplified or declined.'],
-    ['How much is shipping?', `Orders over ${money(FREE_SHIP)} ship free. A flat rate applies below that.`],
+    ['How much is shipping?', `Orders over ${cash(freeShip())} ship free. A flat ${cash(shipFee())} rate applies below that.`],
     ['Sensitivity cure?', 'No cure. Potassium nitrate 5% helps comfort with continued use. Pain over 2 weeks: see dentist.'],
     ['Kids / pregnancy?', '6y+ per directions; 2–6y pea-size supervised; under 2y + pregnancy: ask dentist/OB.'],
     ['Do I need an account?', 'No. Your cart, photo and orders are saved only in this browser on your device.'],
@@ -656,13 +744,16 @@ function Disclaimer() {
 }
 
 function Checkout({ cart, go }) {
-  const { items, total, clear } = cart
+  const { items, total, totalA, clear } = cart
   const [f, setF] = useState({ name: '', phone: '', address: '', city: '', pin: '', notes: '' })
   const [errs, setErrs] = useState({})
   const [placed, setPlaced] = useState(null)
   const [orders, setOrders] = useState(loadOrders)
   const sumRef = useRef(null)
-  const ship = items.length === 0 ? 0 : total >= FREE_SHIP ? 0 : 4.95
+  const lock = useRef(false)
+  useEffect(() => { lock.current = false }, [items])
+  const ship = items.length === 0 ? 0 : totalA >= freeShip() ? 0 : shipFee()
+  const lineTot = (c) => getCur() === 'INR' ? toInr(c.price) * (c.qty || 1) : c.price * (c.qty || 1)
   const set = (k, v) => { setF({ ...f, [k]: v }); setErrs({ ...errs, [k]: '' }) }
   const validate = () => {
     const e = {}
@@ -675,13 +766,17 @@ function Checkout({ cart, go }) {
   }
   const submit = (ev) => {
     ev.preventDefault()
+    if (lock.current) return
     const e = validate()
     setErrs(e)
     if (Object.keys(e).length) { if (sumRef.current) sumRef.current.focus(); return }
+    lock.current = true
     const order = {
       id: newOrderId(),
       items: items.map((i) => ({ sku: i.sku, label: i.label, flavor: i.flavor, qty: i.qty || 1, price: i.price })),
-      total: Math.round((total + ship) * 100) / 100,
+      totalUsd: total,
+      total: Math.round((totalA + ship) * 100) / 100,
+      cur: getCur(),
       address: { name: f.name.trim(), phone: f.phone.trim(), address: f.address.trim(), city: f.city.trim(), pin: f.pin.trim(), notes: f.notes.trim() },
       ts: Date.now(), status: 'received',
     }
@@ -752,14 +847,14 @@ function Checkout({ cart, go }) {
               <div style={{ flex: '1 1 120px' }}>{field('pin', 'Postal / PIN', { type: 'text', inputMode: 'numeric', autoComplete: 'postal-code' })}</div>
             </div>
             {field('notes', 'Delivery notes (optional)', { textarea: true })}
-            <MBtn block type="submit">Place order — {money(total + ship)}</MBtn>
+            <MBtn block type="submit">Place order — {cash(totalA + ship)}</MBtn>
           </form>
           <div>
             <h2>Order summary</h2>
             {items.map((c) => (
-              <p key={c.ts} className="small"><b>{c.label}</b> × {c.qty || 1}<br />{isMerch(c.sku) ? c.flavor : `${c.flavor} · ${c.pack}-pack`} · {money(c.price * (c.qty || 1))}</p>
+              <p key={c.ts} className="small"><b>{c.label}</b> × {c.qty || 1}<br />{isMerch(c.sku) ? c.flavor : `${c.flavor} · ${c.pack}-pack`} · {cash(lineTot(c))}</p>
             ))}
-            <p className="small">Subtotal: {money(total)}<br />Shipping: {ship === 0 ? 'Free' : money(ship)}<br /><b>Total: {money(total + ship)}</b></p>
+            <p className="small">Subtotal: {cash(totalA)}<br />Shipping: {ship === 0 ? 'Free' : cash(ship)}<br /><b>Total: {cash(totalA + ship)}</b></p>
           </div>
         </div>
       )}
@@ -776,7 +871,7 @@ function OrderHistory({ orders }) {
       {orders.map((o) => (
         <div className="card" key={o.id} style={{ marginBottom: 12 }}>
           <p style={{ margin: 0 }}><span className="sku">{o.id}</span> <span className="statuschip">{o.status}</span></p>
-          <p className="small muted" style={{ margin: '4px 0' }}>{new Date(o.ts).toLocaleDateString()} · {o.items.reduce((s, i) => s + (i.qty || 1), 0)} items · <b style={{ color: '#000' }}>{money(o.total)}</b></p>
+          <p className="small muted" style={{ margin: '4px 0' }}>{new Date(o.ts).toLocaleDateString()} · {o.items.reduce((s, i) => s + (i.qty || 1), 0)} items · <b style={{ color: '#000' }}>{fmtNative(o.total, o.cur || 'USD')}</b></p>
         </div>
       ))}
     </div>
@@ -810,8 +905,16 @@ function SiteFooter({ go }) {
 export default function App() {
   const [route, go] = useHash()
   const [preset, setPreset] = useState('P')
+  const [cur, setC] = useState(getCur())
+  const [curMsg, setCurMsg] = useState('')
   const cart = useCart()
+  const pickCur = (c) => {
+    if (c === cur) return
+    setCur(c); setC(getCur())
+    setCurMsg(c === 'INR' ? 'Prices now in Indian rupees' : 'Prices now in US dollars')
+  }
   const mainRef = useRef(null)
+  const cartBtnRef = useRef(null)
   const { scrollYProgress } = useScroll()
   const sx = useSpring(scrollYProgress, { stiffness: 140, damping: 28 })
   useEffect(() => {
@@ -829,7 +932,7 @@ export default function App() {
           <div className="marquee-track">
             {[0, 1].map((n) => (
               <div key={n} aria-hidden={n === 1} style={{ display: 'inline-flex' }}>
-                <span>Free shipping over {money(FREE_SHIP)}</span><span>14-day fresh-breath promise</span><span>1450ppm fluoride in every tube</span><span>SLS-free options</span>
+                <span>Free shipping over {cash(freeShip())}</span><span>14-day fresh-breath promise</span><span>1450ppm fluoride in every tube</span><span>SLS-free options</span>
               </div>
             ))}
           </div>
@@ -840,7 +943,12 @@ export default function App() {
             {NAV.map(([k, l]) => (
               <button type="button" key={k} className={route === k ? 'on' : ''} aria-current={route === k ? 'page' : undefined} onClick={() => go(k)}>{l}</button>
             ))}
-            <button type="button" onClick={openCart} aria-expanded={cart.open} aria-controls="cart-drawer" aria-haspopup="dialog" aria-label={`Open cart, ${cart.count} items`} style={{ background: '#000', color: '#fff', borderRadius: 999, padding: '8px 16px', minHeight: 44, fontWeight: 600, whiteSpace: 'nowrap' }}>
+            <div className="curgroup" role="group" aria-label="Currency">
+              <button type="button" aria-pressed={cur === 'USD'} onClick={() => pickCur('USD')}><span aria-hidden="true">$ </span>USD</button>
+              <button type="button" aria-pressed={cur === 'INR'} onClick={() => pickCur('INR')}><span aria-hidden="true">₹ </span>INR</button>
+            </div>
+            <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">{curMsg}</span>
+            <button type="button" ref={cartBtnRef} onClick={openCart} aria-expanded={cart.open} aria-controls="cart-drawer" aria-haspopup="dialog" aria-label={`Open cart, ${cart.count} items`} style={{ background: '#000', color: '#fff', borderRadius: 999, padding: '8px 16px', minHeight: 44, fontWeight: 600, whiteSpace: 'nowrap' }}>
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.span key={cart.count} initial={{ y: -8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 8, opacity: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 26 }} style={{ display: 'inline-block' }}>Cart {cart.count}</motion.span>
               </AnimatePresence>
