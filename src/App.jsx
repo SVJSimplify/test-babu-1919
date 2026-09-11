@@ -4,7 +4,7 @@ import { BASES, FLAVORS, CLINICAL, BOTANICAL, ARTS, PRODUCTS, MERCH, money, cash
 
 const ROUTES = ['home', 'shop', 'merch', 'customize', 'science', 'plan', 'faq', 'disclaimer', 'checkout']
 const TITLES = { home: 'MONO. — Toothpaste, reduced to what works', shop: 'Shop — MONO.', merch: 'Merch — MONO.', customize: 'Customize — MONO.', science: 'Science — MONO.', plan: 'Our plan — MONO.', faq: 'FAQ — MONO.', disclaimer: 'Disclaimer — MONO.', checkout: 'Checkout — MONO.' }
-const NAV = [['home', 'Shop'], ['shop', 'All products'], ['merch', 'Merch'], ['customize', 'Customize'], ['science', 'Science'], ['plan', 'Plan'], ['faq', 'FAQ']]
+const NAV = [['home', 'Home'], ['shop', 'Shop'], ['merch', 'Merch'], ['customize', 'Customize'], ['science', 'Science'], ['plan', 'Plan'], ['faq', 'FAQ']]
 function useHash() {
   const get = () => (window.location.hash || '#home').replace('#', '').split('?')[0] || 'home'
   const [r, setR] = useState(ROUTES.includes(get()) ? get() : 'home')
@@ -16,7 +16,7 @@ function useHash() {
   return [r, (x) => { window.location.hash = x }]
 }
 
-const fade = { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.25, ease: 'easeOut' } }
+const fade = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -12 }, transition: { duration: 0.3, ease: 'easeOut' } }
 const gridP = { h: {}, s: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } } }
 const gridC = { h: { opacity: 0, y: 12 }, s: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] } } }
 function Reveal({ children }) {
@@ -25,7 +25,7 @@ function Reveal({ children }) {
 function MBtn({ sec, block, ...rest }) {
   return <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.97 }} transition={{ duration: 0.15 }} className={(sec ? 'btn sec' : 'btn') + (block ? ' block' : '')} {...rest} />
 }
-function AddBtn({ onAdd, label, price }) {
+function AddBtn({ onAdd, label, price, cur }) {
   const [ok, setOk] = useState(false)
   const t = useRef(null)
   useEffect(() => () => { if (t.current) clearTimeout(t.current) }, [])
@@ -36,9 +36,19 @@ function AddBtn({ onAdd, label, price }) {
       <AnimatePresence mode="wait" initial={false}>
         {ok
           ? <motion.span key="ok" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}>Added — check cart</motion.span>
-          : <motion.span key="add" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}>Add — {money(price)}</motion.span>}
+          : <motion.span key="add" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.15 }}>Add — <Price usd={price} cur={cur} /></motion.span>}
       </AnimatePresence>
     </motion.button>
+  )
+}
+function Price({ usd, cur, native }) {
+  const value = native != null ? cash(native) : money(usd)
+  return (
+    <span style={{ display: 'inline-block', overflow: 'hidden', verticalAlign: 'bottom' }}>
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span key={`${cur}-${value}`} initial={{ y: -8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 8, opacity: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 26 }} style={{ display: 'inline-block' }}>{value}</motion.span>
+      </AnimatePresence>
+    </span>
   )
 }
 function Stars({ rating, reviews }) {
@@ -131,7 +141,7 @@ function useCart() {
   return { items, add, setQty, removeAt, clear, open, setOpen, msg, count: cartCount(items), total: cartTotal(items), totalA: cartTotalActive(items) }
 }
 
-function ProductCard({ p, onAdd, index }) {
+function ProductCard({ p, onAdd, index, cur }) {
   return (
     <motion.article className="card shopcard" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(index, 8) * 0.05 }} whileHover={{ y: -4 }}>
@@ -142,15 +152,15 @@ function ProductCard({ p, onAdd, index }) {
         <p className="small muted" style={{ margin: 0 }}>{p.flavor} · {p.pack}-pack</p>
         <Stars rating={p.rating} reviews={p.reviews} />
         <p className="small" style={{ margin: 0 }}>{p.blurb}</p>
-        <p style={{ margin: '4px 0' }}><b>{money(p.price)}</b>{p.compareAt && <span className="small muted"> <s>{money(p.compareAt)}</s></span>}</p>
+        <p style={{ margin: '4px 0' }}><b><Price usd={p.price} cur={cur} /></b>{p.compareAt && <span className="small muted"> <s><Price usd={p.compareAt} cur={cur} /></s></span>}</p>
         <p className="small muted sku" style={{ margin: 0 }}>{p.id}</p>
-        <div style={{ marginTop: 'auto', paddingTop: 8 }}><AddBtn onAdd={() => onAdd(p)} label={p.name} price={p.price} /></div>
+        <div style={{ marginTop: 'auto', paddingTop: 8 }}><AddBtn onAdd={() => onAdd(p)} label={p.name} price={p.price} cur={cur} /></div>
       </div>
     </motion.article>
   )
 }
 
-function CartDrawer({ cart, go }) {
+function CartDrawer({ cart, go, cur }) {
   const { items, setQty, removeAt, open, setOpen, msg, totalA, count } = cart
   const closeRef = useRef(null)
   const opener = useRef(null)
@@ -164,7 +174,7 @@ function CartDrawer({ cart, go }) {
       if (opener.current && opener.current.focus) opener.current.focus()
     }
     return () => { document.body.style.overflow = '' }
-  }, [open ])
+  }, [open])
   const away = Math.max(0, freeShip() - totalA)
   const trap = (e) => {
     if (e.key === 'Escape') { setOpen(false); return }
@@ -186,7 +196,7 @@ function CartDrawer({ cart, go }) {
             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', stiffness: 320, damping: 32, mass: 0.9 }}>
             <div className="drawer-head">
               <h2 style={{ margin: 0 }}>Your cart ({count})</h2>
-              <button type="button" ref={closeRef} className="btn sec" style={{ padding: '8px 16px' }} onClick={() => setOpen(false)} aria-label="Close cart">✕</button>
+              <button type="button" ref={closeRef} className="btn sec" style={{ padding: '8px 16px' }} onClick={() => setOpen(false)} aria-label="Close cart"><span aria-hidden="true">✕</span></button>
             </div>
             <div className="drawer-body">
               <p aria-live="polite" className="small">{msg}</p>
@@ -219,12 +229,12 @@ function CartDrawer({ cart, go }) {
             {items.length > 0 && (
               <div className="drawer-foot">
                 {away > 0
-                  ? <p className="small">You are <b>{cash(away)}</b> away from free shipping</p>
+                  ? <p className="small">You are <b><Price native={away} cur={cur} /></b> away from free shipping</p>
                   : <p className="small"><b>Free shipping unlocked ✓</b></p>}
                 <div className="shipbar" role="progressbar" aria-valuemin={0} aria-valuemax={freeShip()} aria-valuenow={Math.min(totalA, freeShip())} aria-label="Progress to free shipping">
                   <div style={{ width: `${Math.min(100, (totalA / freeShip()) * 100)}%` }} />
                 </div>
-                <p style={{ display: 'flex', justifyContent: 'space-between' }}><b>Subtotal</b><b>{cash(totalA)}</b></p>
+                <p style={{ display: 'flex', justifyContent: 'space-between' }}><b>Subtotal</b><b><Price native={totalA} cur={cur} /></b></p>
                 <div className="row">
                   <MBtn block onClick={() => { setOpen(false); go('checkout') }}>Checkout</MBtn>
                   <MBtn sec block onClick={() => setOpen(false)}>Continue shopping</MBtn>
@@ -243,11 +253,19 @@ function BrandAd({ go }) {
   const [i, setI] = useState(0)
   const [paused, setPaused] = useState(false)
   const [reduced] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const t = useRef(null)
+  const fired = useRef(false)
+  useEffect(() => () => { if (t.current) clearTimeout(t.current) }, [])
   useEffect(() => {
     if (reduced || paused) return
     const id = setInterval(() => setI((v) => (v + 1) % AD_LINES.length), 3000)
     return () => clearInterval(id)
   }, [reduced, paused])
+  const shop = () => {
+    if (fired.current) return
+    fired.current = true
+    t.current = setTimeout(() => go('shop'), 180)
+  }
   return (
     <section className="adfilm" aria-roledescription="carousel" aria-label="MONO brand messages"
       onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}>
@@ -265,7 +283,7 @@ function BrandAd({ go }) {
           )}
         </div>
         <p className="sub small">Plain toothpaste. Pick a flavor, keep the routine.</p>
-        <p><a href="#shop" className="cta" onClick={(e) => { e.preventDefault(); go('shop') }}>Shop the routine</a></p>
+        <p><motion.button type="button" className="cta" style={{ cursor: 'pointer', border: 'none', font: 'inherit' }} whileTap={{ scale: 0.96 }} onClick={shop}>Shop the routine</motion.button></p>
         {!reduced && (
           <div>
             <div className="addots" role="group" aria-label="Choose message">
@@ -301,7 +319,7 @@ function MethodStrip({ go }) {
   )
 }
 const MERCH_GLYPH = { Tee: 'T', Tote: 'O', Mug: 'M', Case: 'C', Stickers: 'S', Poster: 'P' }
-function MerchCard({ m, index, onAdd }) {
+function MerchCard({ m, index, onAdd, cur }) {
   const [size, setSize] = useState(m.sizes ? 'M' : 'OS')
   return (
     <motion.article className="card shopcard" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
@@ -313,7 +331,7 @@ function MerchCard({ m, index, onAdd }) {
         <p className="small muted" style={{ margin: 0 }}>{m.flavor}</p>
         <Stars rating={m.rating} reviews={m.reviews} />
         <p className="small" style={{ margin: 0 }}>{m.blurb}</p>
-        <p style={{ margin: '4px 0' }}><b>{money(m.price)}</b>{m.compareAt && <span className="small muted"> <s>{money(m.compareAt)}</s></span>}</p>
+        <p style={{ margin: '4px 0' }}><b><Price usd={m.price} cur={cur} /></b>{m.compareAt && <span className="small muted"> <s><Price usd={m.compareAt} cur={cur} /></s></span>}</p>
         {m.sizes && (
           <div className="sizepills" role="group" aria-label={`${m.name} size`}>
             {m.sizes.map((s) => (
@@ -322,13 +340,13 @@ function MerchCard({ m, index, onAdd }) {
           </div>
         )}
         <div style={{ marginTop: 'auto', paddingTop: 8 }}>
-          <AddBtn onAdd={() => onAdd(m, size)} label={size !== 'OS' ? `${m.name} size ${size}` : m.name} price={m.price} />
+          <AddBtn onAdd={() => onAdd(m, size)} label={size !== 'OS' ? `${m.name} size ${size}` : m.name} price={m.price} cur={cur} />
         </div>
       </div>
     </motion.article>
   )
 }
-function Merch({ cart }) {
+function Merch({ cart, cur }) {
   return (
     <div className="wrap">
       <h1>Merch. Black and white.</h1>
@@ -336,14 +354,14 @@ function Merch({ cart }) {
       <p aria-live="polite" className="small">{cart.msg}</p>
       <div className="shopgrid" style={{ marginTop: 12 }}>
         {MERCH.map((m, i) => (
-          <MerchCard key={m.id} m={m} index={i} onAdd={(x, size) => cart.add({ sku: x.id, label: x.name + (size && size !== 'OS' ? ` (${size})` : ''), pack: size || 'OS', price: x.price, flavor: x.flavor, art: x.art, photo: false, customNote: '' })} />
+          <MerchCard key={m.id} m={m} index={i} cur={cur} onAdd={(x, size) => cart.add({ sku: x.id, label: x.name + (size && size !== 'OS' ? ` (${size})` : ''), pack: size || 'OS', price: x.price, flavor: x.flavor, art: x.art, photo: false, customNote: '' })} />
         ))}
       </div>
     </div>
   )
 }
 
-function Home({ go, cart }) {
+function Home({ go, cart, cur }) {
   const [goal, setGoal] = useState('Stay fresh')
   const [email, setEmail] = useState('')
   const [news, setNews] = useState('')
@@ -380,7 +398,7 @@ function Home({ go, cart }) {
         <motion.div className="shopgrid" variants={gridP} initial="h" whileInView="s" viewport={{ once: true, margin: '-60px' }}>
           {best.map((p, i) => (
             <motion.div key={p.id} variants={gridC}>
-              <ProductCard p={p} index={i} onAdd={(x) => cart.add({ sku: x.id, label: x.name, pack: x.pack, price: x.price, flavor: x.flavor, art: x.art, photo: false, customNote: '' })} />
+              <ProductCard p={p} index={i} cur={cur} onAdd={(x) => cart.add({ sku: x.id, label: x.name, pack: x.pack, price: x.price, flavor: x.flavor, art: x.art, photo: false, customNote: '' })} />
             </motion.div>
           ))}
         </motion.div>
@@ -400,7 +418,7 @@ function Home({ go, cart }) {
         <p className="small muted">Real routines, in their words. Taste and routine only — not health outcomes.</p>
         <div className="grid3">
           {[['AR', 5, 'Low foam, no burn. Finally finished 2 minutes.'], ['SK', 4, 'Calm + light mint. Comfort with continued use.'], ['JM', 5, 'My name on the tube. Kids stopped stealing mine.']].map(([n, s, t]) => (
-            <Reveal key={n}><div className="card"><b>{n}</b> <span className="small stars" aria-hidden="true">{'★'.repeat(s)}</span><p className="small">{t}</p></div></Reveal>
+            <Reveal key={n}><div className="card"><b>{n}</b> <span className="small stars" aria-hidden="true">{'★'.repeat(s)}</span><p className="small">{t}</p></div>
           ))}
         </div>
       </div>
@@ -418,7 +436,7 @@ function Home({ go, cart }) {
   )
 }
 
-function Shop({ cart }) {
+function Shop({ cart, cur }) {
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState('all')
   const [sort, setSort] = useState('featured')
@@ -442,7 +460,7 @@ function Shop({ cart }) {
           <label htmlFor="shop-q">Search products</label>
           <div className="row" style={{ flexWrap: 'nowrap' }}>
             <input ref={searchRef} id="shop-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="mint, calm, 3-pack…" style={{ fontSize: 16 }} />
-            {q && <button type="button" className="btn sec" onClick={() => setQ('')} aria-label="Clear search">✕</button>}
+            {q && <button type="button" className="btn sec" onClick={() => setQ('')} aria-label="Clear search"><span aria-hidden="true">✕</span></button>}
           </div>
         </div>
         <div className="field" style={{ marginBottom: 0, minWidth: 180 }}>
@@ -469,7 +487,7 @@ function Shop({ cart }) {
       )}
       <div className="shopgrid" style={{ marginTop: 12 }}>
         {list.map((p, i) => (
-          <ProductCard key={p.id} p={p} index={i} onAdd={(x) => cart.add({ sku: x.id, label: x.name, pack: x.pack, price: x.price, flavor: x.flavor, art: x.art, photo: false, customNote: '' })} />
+          <ProductCard key={p.id} p={p} index={i} cur={cur} onAdd={(x) => cart.add({ sku: x.id, label: x.name, pack: x.pack, price: x.price, flavor: x.flavor, art: x.art, photo: false, customNote: '' })} />
         ))}
       </div>
       <p className="small muted">One habit promise: brush twice daily for two minutes. That routine matters more than any tube.</p>
@@ -477,7 +495,7 @@ function Shop({ cart }) {
   )
 }
 
-function Customizer({ preset, cart }) {
+function Customizer({ preset, cart, cur }) {
   const { add, msg } = cart
   const [need, setNeed] = useState(preset || 'P')
   useEffect(() => { if (preset) setNeed(preset) }, [preset])
@@ -551,7 +569,7 @@ function Customizer({ preset, cart }) {
             <div>
               <h2>02 Taste — same fluoride base in every tube</h2>
               <div className="tscroll"><table className="t"><thead><tr><th>INCI</th><th>%</th><th>Function</th></tr></thead>
-                <tbody>{base.formula.map((f) => (<tr key={f.inci}><td>{f.inci}</td><td>{f.pct}</td><td>{f.fn}</td></tr>))}</tbody>
+                <tbody>{base.formula.map((f) => (<tr key={f.inci}><td>{f.inci}</td><td>{f.pct}</td><td>{f.fn}</td><td>{f.grade}</td></tr>))}</tbody>
               </table></div>
               <h3>Clinical fresh — first priority</h3>
               <div className="row" role="group" aria-label="Clinical flavors">
@@ -620,9 +638,9 @@ function Customizer({ preset, cart }) {
               <div style={{ marginTop: 16 }}><VerifyPanel sku={sku} base={base} /></div>
               <p aria-live="polite" className="small sku">{sku}</p>
               <div className="row" style={{ marginTop: 12 }}>
-                <MBtn onClick={() => addPack('single', 12)}>Add — {money(12)}</MBtn>
-                <MBtn sec onClick={() => addPack('3-pack', 29)}>3-pack — {money(29)}</MBtn>
-                <MBtn sec onClick={() => addPack('sub', 10)}>Subscribe — {money(10)}/tube</MBtn>
+                <MBtn onClick={() => addPack('single', 12)}>Add — <Price usd={12} cur={cur} /></MBtn>
+                <MBtn sec onClick={() => addPack('3-pack', 29)}>3-pack — <Price usd={29} cur={cur} /></MBtn>
+                <MBtn sec onClick={() => addPack('sub', 10)}>Subscribe — <Price usd={10} cur={cur} />/tube</MBtn>
                 <MBtn sec onClick={() => goStep(2)}>Back</MBtn>
               </div>
             </div>
@@ -632,8 +650,8 @@ function Customizer({ preset, cart }) {
       {step === 3 && (
         <div className="stickybar">
           <div className="stickybar-in">
-            <div style={{ flex: 1 }}><p className="small" style={{ margin: 0 }}>{FLAVORS[flavor].name} {intensity}</p><p style={{ margin: 0 }}><b>{money(12)}</b></p></div>
-            <MBtn onClick={() => addPack('single', 12)}>Add — {money(12)}</MBtn>
+            <div style={{ flex: 1 }}><p className="small" style={{ margin: 0 }}>{FLAVORS[flavor].name} {intensity}</p><p style={{ margin: 0 }}><b><Price usd={12} cur={cur} /></b></p></div>
+            <MBtn onClick={() => addPack('single', 12)}>Add — <Price usd={12} cur={cur} /></MBtn>
           </div>
         </div>
       )}
@@ -743,7 +761,7 @@ function Disclaimer() {
   )
 }
 
-function Checkout({ cart, go }) {
+function Checkout({ cart, go, cur }) {
   const { items, total, totalA, clear } = cart
   const [f, setF] = useState({ name: '', phone: '', address: '', city: '', pin: '', notes: '' })
   const [errs, setErrs] = useState({})
@@ -847,14 +865,14 @@ function Checkout({ cart, go }) {
               <div style={{ flex: '1 1 120px' }}>{field('pin', 'Postal / PIN', { type: 'text', inputMode: 'numeric', autoComplete: 'postal-code' })}</div>
             </div>
             {field('notes', 'Delivery notes (optional)', { textarea: true })}
-            <MBtn block type="submit">Place order — {cash(totalA + ship)}</MBtn>
+            <MBtn block type="submit">Place order — <Price native={totalA + ship} cur={cur} /></MBtn>
           </form>
           <div>
             <h2>Order summary</h2>
             {items.map((c) => (
-              <p key={c.ts} className="small"><b>{c.label}</b> × {c.qty || 1}<br />{isMerch(c.sku) ? c.flavor : `${c.flavor} · ${c.pack}-pack`} · {cash(lineTot(c))}</p>
+              <p key={c.ts} className="small"><b>{c.label}</b> × {c.qty || 1}<br />{isMerch(c.sku) ? c.flavor : `${c.flavor} · ${c.pack}-pack`} · <Price native={lineTot(c)} cur={cur} /></p>
             ))}
-            <p className="small">Subtotal: {cash(totalA)}<br />Shipping: {ship === 0 ? 'Free' : cash(ship)}<br /><b>Total: {cash(totalA + ship)}</b></p>
+            <p className="small">Subtotal: <Price native={totalA} cur={cur} /><br />Shipping: {ship === 0 ? 'Free' : <Price native={ship} cur={cur} />}<br /><b>Total: <Price native={totalA + ship} cur={cur} /></b></p>
           </div>
         </div>
       )}
@@ -892,7 +910,7 @@ function SiteFooter({ go }) {
           <div className="brand" style={{ color: '#fff', marginBottom: 8 }}>MONO.</div>
           <p className="small" style={{ color: '#cfcfcf' }}>Black-and-white toothpaste. Fixed bases, your taste, your design.</p>
         </div>
-        {col('Shop', [['shop', 'All products'], ['customize', 'Customize'], ['merch', 'Merch'], ['shop', '3-Packs']])}
+        {col('Shop', [['shop', 'Shop'], ['customize', 'Customize'], ['merch', 'Merch'], ['shop', '3-Packs']])}
         {col('Help', [['faq', 'FAQ'], ['disclaimer', 'Disclaimer'], ['checkout', 'Checkout'], ['science', 'Ingredients']])}
         {col('Company', [['plan', 'Our plan'], ['science', 'Science'], ['home', 'Bestsellers']])}
       </div>
@@ -957,18 +975,18 @@ export default function App() {
         </div></header>
         <AnimatePresence mode="wait" initial={false}>
           <motion.main id="main" tabIndex={-1} aria-label="Main content" key={route} ref={mainRef} {...fade}>
-            {route === 'home' && <Home go={go} cart={cart} />}
-            {route === 'shop' && <Shop cart={cart} />}
-            {route === 'merch' && <Merch cart={cart} />}
-            {route === 'customize' && <Customizer preset={preset} cart={cart} />}
+            {route === 'home' && <Home go={go} cart={cart} cur={cur} />}
+            {route === 'shop' && <Shop cart={cart} cur={cur} />}
+            {route === 'merch' && <Merch cart={cart} cur={cur} />}
+            {route === 'customize' && <Customizer preset={preset} cart={cart} cur={cur} />}
             {route === 'science' && <Science />}
             {route === 'plan' && <Plan />}
             {route === 'faq' && <Faq />}
             {route === 'disclaimer' && <Disclaimer />}
-            {route === 'checkout' && <Checkout cart={cart} go={go} />}
+            {route === 'checkout' && <Checkout cart={cart} go={go} cur={cur} />}
           </motion.main>
         </AnimatePresence>
-        <CartDrawer cart={cart} go={go} />
+        <CartDrawer cart={cart} go={go} cur={cur} />
         <SiteFooter go={go} />
       </div>
     </MotionConfig>
